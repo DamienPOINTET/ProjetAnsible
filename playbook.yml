@@ -1,0 +1,87 @@
+---
+- hosts: ci-server
+
+  tasks:
+    - name: install JDK 8
+      package:
+        name: openjdk-8-jdk-headless
+        state: present
+
+    - name: add the user wildfly
+      user:
+        name: wildfly
+        system: true
+
+    - name: download wildfly 
+      get_url: 
+        url: http://download.jboss.org/wildfly/11.0.0.Final/wildfly-11.0.0.Final.tar.gz 
+        dest: /opt/
+
+    - name: unarchive wildfly
+      unarchive: 
+        src: /opt/wildfly-11.0.0.Final.tar.gz
+        dest: /opt
+        copy: no
+        remote_src: yes
+
+    - name: permissions to wildfly
+      file:
+        path: /opt/
+        owner: wildfly 
+        group: wildfly 
+        mode: 0755
+        recurse: yes
+        state: directory
+
+    - name: rename repositary
+      command: mv /opt/wildfly-11.0.0.Final /opt/wildfly
+      args:
+        chdir: /opt/
+        creates: /opt/wildfly
+
+    - name: create repositary /etc/wildfly
+      file:
+        path: /etc/wildfly
+        owner: wildfly
+        group: wildfly
+        mode: 0755
+        state: directory
+        recurse: yes        
+
+    - name: copy in /etc/wildfly/
+      copy:
+        src: /opt/wildfly/docs/contrib/scripts/systemd/wildfly.conf
+        dest: /etc/wildfly/
+        remote_src: yes
+
+    - name: copy in /etc/systemd/system/
+      copy: 
+        src: /opt/wildfly/docs/contrib/scripts/systemd/wildfly.service
+        dest: /etc/systemd/system/
+        owner: wildfly
+        group: wildfly
+        mode: 0755
+        remote_src: yes
+
+    - name: copy in /opt/wildfly/bin
+      copy:
+        src: /opt/wildfly/docs/contrib/scripts/systemd/launch.sh
+        dest: /opt/wildfly/bin
+        remote_src: yes
+
+    - name: verification of execution rights
+      file:
+        path: /opt/wildfly/bin
+        owner: wildfly
+        group: wildfly
+        mode: 0755
+        state: directory
+        recurse: yes
+
+    - name: record in doemons systemd list
+      command: systemctl daemon-reload
+
+    - name: launch service
+      service:
+        name: wildfly
+        state: started
